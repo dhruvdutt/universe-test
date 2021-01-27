@@ -1,0 +1,79 @@
+name: Build - universe-test
+'on':
+  - push
+env:
+  APP_NAME: universe-test
+  GIT_BRANCH_A: ${GITHUB_REF##*/}
+  GIT_BRANCH_B: ${GITHUB_REF#refs/heads/}
+  DOCKER_USERNAME: dhruvdutt
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  DOCKER_REGISTRY: dhruvdutt
+# defaults:
+#   run:
+#     working-directory: universe-test
+jobs:
+  staging-build:
+    name: Staging Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v2
+      - name: Setup Node v14
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - name: PWD
+        run: ls
+      - name: Install Dependencies
+        run: yarn install --frozen-lockfile
+      - name: Set Version - Commit Hash
+        if: ${{ github.ref != 'refs/heads/master' }}
+        run: |
+          PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F= "{ print $2 }" | sed "s/[version:,\",]//g" | tr -d "[[:space:]]")
+          GIT_HASH=$(git rev-parse --short "$GITHUB_SHA")
+          VERSION=$PACKAGE_VERSION-$GIT_HASH
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Set Version
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          VERSION=$(cat package.json | grep version | head -1 | awk -F= "{ print $2 }" | sed "s/[version:,\",]//g" | tr -d "[[:space:]]")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Build Docker Image
+        run: |
+          docker build . \
+          --file ./Dockerfile \
+          --build-arg APP_NAME=${APP_NAME} \
+          --build-arg STAGE=staging \
+          --tag ${DOCKER_REGISTRY}/${APP_NAME}:${VERSION}-staging
+      - name: Push to Docker Registry
+        run: |
+          docker login --username ${DOCKER_USERNAME} --password ${DOCKER_PASSWORD}
+          docker push ${DOCKER_REGISTRY}/${APP_NAME}:${VERSION}-staging
+  production-build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    if: "${{ github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, 'build: update version') }}"
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v2
+      - name: Setup Node v14
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - name: Install Dependencies
+        run: yarn install --frozen-lockfile
+      - name: Set Version
+        run: |
+          VERSION=$(cat package.json | grep version | head -1 | awk -F= "{ print $2 }" | sed "s/[version:,\",]//g" | tr -d "[[:space:]]")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Build Docker Image
+        run: |
+          docker build . \
+          --file ./Dockerfile \
+          --build-arg APP_NAME=${APP_NAME} \
+          --build-arg STAGE=production \
+          --tag ${DOCKER_REGISTRY}/${APP_NAME}:${VERSION}
+      - name: Push to Docker Registry
+        run: |
+          docker login --username ${DOCKER_USERNAME} --password ${DOCKER_PASSWORD}
+          docker push ${DOCKER_REGISTRY}/${APP_NAME}:${VERSION}

@@ -1,0 +1,27 @@
+{
+  "name": "universe-test",
+  "description": "testing",
+  "repository": "https://github.com/dhruvdutt/universe-test",
+  "version": "1.0.0",
+  "author": "dhruvdutt",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "echo STAGE=development universe dev",
+    "staging:build": "echo STAGE=staging universe build",
+    "staging:serve": "echo STAGE=staging universe serve",
+    "production:build": "echo STAGE=production universe build",
+    "production:serve": "echo STAGE=production universe serve",
+    "test": "echo \"Error: no test specified\""
+  },
+  "dependencies": {
+    "chalk": "3.0.0",
+    "compression": "1.7.4"
+  },
+  "devDependencies": {},
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog",
+      "disableScopeLowerCase": true
+    }
+  }
+}
